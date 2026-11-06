@@ -1,0 +1,264 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>单调栈交互动画</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:#f7f8fb;margin:0;color:#1f2937}
+.wrap{max-width:1280px;margin:0 auto;padding:20px}
+h1{margin:0 0 8px 0;font-size:28px}
+.sub{color:#475569;line-height:1.7;margin-bottom:14px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+button{border:none;border-radius:10px;background:#2563eb;color:#fff;padding:10px 14px;cursor:pointer}
+button.secondary{background:#475569}
+button:disabled{opacity:.45;cursor:not-allowed}
+input[type=range]{width:360px}
+.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px}
+.card{background:#fff;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.06);padding:16px}
+.histogram{display:flex;align-items:flex-end;gap:10px;height:360px;border:1px solid #e5e7eb;border-radius:14px;padding:12px 12px 28px 12px;position:relative;overflow:hidden;background:linear-gradient(180deg,#fff,#fbfdff)}
+.barwrap{flex:1;min-width:70px;height:100%;display:flex;align-items:flex-end;justify-content:center;position:relative}
+.bar{width:70%;border-radius:10px 10px 0 0;background:#93c5fd;position:relative;display:flex;justify-content:center;align-items:flex-start;transition:all .25s ease}
+.bar.current{background:#f59e0b}
+.bar.instack{background:#60a5fa}
+.bar.popped{background:#ef4444}
+.bar.boundary{background:#cbd5e1}
+.bar.pushing{outline:4px solid #22c55e55}
+.bar .num{position:absolute;top:-26px;background:#111827;color:#fff;border-radius:999px;padding:2px 7px;font-size:13px}
+.xlab{position:absolute;bottom:-24px;font-size:13px;color:#475569}
+.rect{position:absolute;border:2px dashed #ef4444;background:rgba(239,68,68,.12);pointer-events:none}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:#475569}
+.dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+.stackchips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:#e0f2fe;color:#0c4a6e;border-radius:999px;padding:8px 12px;font-size:14px}
+.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.stat{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px}
+.k{font-size:12px;color:#64748b;margin-bottom:4px}
+.v{font-size:18px;font-weight:700}
+.explain{line-height:1.8;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px;margin-top:12px}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f172a;color:#cbd5e1;border-radius:14px;padding:12px;overflow:auto;font-size:13px;line-height:1.6}
+.line{display:flex;gap:12px;padding:1px 6px;border-radius:8px}
+.line.active{background:rgba(37,99,235,.18)}
+.ln{width:24px;color:#64748b;text-align:right;flex:0 0 auto}
+.big{font-size:20px;font-weight:700}
+.footer{margin-top:14px;color:#475569;line-height:1.75}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>单调栈交互动画：柱状图最大矩形</h1>
+  <div class="sub">
+    固定例子：<b>[2,1,5,6,2,3]</b>。本动画严格按代码执行顺序播放：<b>补 0 → 遍历 i → while 弹栈 → 算面积 → push 当前下标</b>。<br>
+    你可以一步一步看，也可以自动播放。重点观察：<b>什么时候弹栈、弹出后 left / right 是谁、width 为什么是 i-left-1</b>。
+  </div>
+  <div class="toolbar">
+    <button id="prevBtn" class="secondary">上一步</button>
+    <button id="nextBtn">下一步</button>
+    <button id="playBtn">自动播放</button>
+    <button id="resetBtn" class="secondary">重置</button>
+    <span>步骤</span>
+    <input id="slider" type="range" min="0" max="0" value="0"/>
+    <span id="stepText"></span>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div id="hist" class="histogram"></div>
+      <div class="legend">
+        <span><i class="dot" style="background:#f59e0b"></i> 当前 i</span>
+        <span><i class="dot" style="background:#60a5fa"></i> 在栈中</span>
+        <span><i class="dot" style="background:#ef4444"></i> 正在弹出 / 算面积</span>
+        <span><i class="dot" style="background:#cbd5e1"></i> 左右边界</span>
+      </div>
+      <div id="explain" class="explain"></div>
+    </div>
+
+    <div class="card">
+      <div class="big">当前栈（保存的是下标）</div>
+      <div id="stackchips" class="stackchips" style="margin-top:10px;"></div>
+
+      <div class="meta">
+        <div class="stat"><div class="k">当前 i</div><div class="v" id="curI"></div></div>
+        <div class="stat"><div class="k">当前高度 h[i]</div><div class="v" id="curH"></div></div>
+        <div class="stat"><div class="k">当前最大面积 ans</div><div class="v" id="curAns"></div></div>
+        <div class="stat"><div class="k">当前动作</div><div class="v" id="curAction" style="font-size:16px;"></div></div>
+      </div>
+
+      <div id="calcMeta" class="meta" style="margin-top:12px;"></div>
+
+      <div class="big" style="margin-top:14px;">代码对应</div>
+      <div id="code" class="code"></div>
+
+      <div class="footer">
+        <b>盯住这三句话：</b><br>
+        1. 栈里存的是 <b>下标</b>，不是高度。<br>
+        2. 当 <code>h[i] &lt;= h[st.top()]</code> 时，说明栈顶柱子的右边第一个更矮/等高柱子找到了，所以它该出栈并计算面积。<br>
+        3. 出栈后新的栈顶，就是它左边最近更矮的柱子，所以 <b>width = i - left - 1</b>。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [{"action": "init", "i": 0, "currentHeight": 2, "stack": [], "ans": 0, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "初始化：原始高度数组是 [2,1,5,6,2,3]，末尾补一个 0，用来强制把栈清空。", "codeLine": 1}, {"action": "visit", "i": 0, "currentHeight": 2, "stack": [], "ans": 0, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "开始处理 i=0，当前高度 h[i]=2。先判断会不会触发弹栈。", "codeLine": 6}, {"action": "push", "i": 0, "currentHeight": 2, "stack": [0], "ans": 0, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "把当前下标 0 入栈。现在栈里下标是 [0]，对应高度是 [2]。", "codeLine": 16, "pushIndex": 0, "pushHeight": 2}, {"action": "visit", "i": 1, "currentHeight": 1, "stack": [0], "ans": 0, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "开始处理 i=1，当前高度 h[i]=1。先判断会不会触发弹栈。", "codeLine": 6}, {"action": "compare-pop", "i": 1, "currentHeight": 1, "stack": [0], "ans": 0, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "因为 h[i]=1 <= 栈顶高度 h[0]=2，所以要弹出下标 0。", "codeLine": 7, "popIndex": 0, "popHeight": 2}, {"action": "calc-area", "i": 1, "currentHeight": 1, "stack": [], "ans": 2, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "弹出后 left=-1，right=1。所以 width = 1 - (-1) - 1 = 1，area = 2 × 1 = 2，ans 更新为 2。", "codeLine": 12, "popIndex": 0, "popHeight": 2, "left": -1, "right": 1, "width": 1, "area": 2, "oldAns": 0}, {"action": "push", "i": 1, "currentHeight": 1, "stack": [1], "ans": 2, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "把当前下标 1 入栈。现在栈里下标是 [1]，对应高度是 [1]。", "codeLine": 16, "pushIndex": 1, "pushHeight": 1}, {"action": "visit", "i": 2, "currentHeight": 5, "stack": [1], "ans": 2, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "开始处理 i=2，当前高度 h[i]=5。先判断会不会触发弹栈。", "codeLine": 6}, {"action": "push", "i": 2, "currentHeight": 5, "stack": [1, 2], "ans": 2, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "把当前下标 2 入栈。现在栈里下标是 [1, 2]，对应高度是 [1, 5]。", "codeLine": 16, "pushIndex": 2, "pushHeight": 5}, {"action": "visit", "i": 3, "currentHeight": 6, "stack": [1, 2], "ans": 2, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "开始处理 i=3，当前高度 h[i]=6。先判断会不会触发弹栈。", "codeLine": 6}, {"action": "push", "i": 3, "currentHeight": 6, "stack": [1, 2, 3], "ans": 2, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "把当前下标 3 入栈。现在栈里下标是 [1, 2, 3]，对应高度是 [1, 5, 6]。", "codeLine": 16, "pushIndex": 3, "pushHeight": 6}, {"action": "visit", "i": 4, "currentHeight": 2, "stack": [1, 2, 3], "ans": 2, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "开始处理 i=4，当前高度 h[i]=2。先判断会不会触发弹栈。", "codeLine": 6}, {"action": "compare-pop", "i": 4, "currentHeight": 2, "stack": [1, 2, 3], "ans": 2, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "因为 h[i]=2 <= 栈顶高度 h[3]=6，所以要弹出下标 3。", "codeLine": 7, "popIndex": 3, "popHeight": 6}, {"action": "calc-area", "i": 4, "currentHeight": 2, "stack": [1, 2], "ans": 6, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "弹出后 left=2，right=4。所以 width = 4 - (2) - 1 = 1，area = 6 × 1 = 6，ans 更新为 6。", "codeLine": 12, "popIndex": 3, "popHeight": 6, "left": 2, "right": 4, "width": 1, "area": 6, "oldAns": 2}, {"action": "compare-pop", "i": 4, "currentHeight": 2, "stack": [1, 2], "ans": 6, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "因为 h[i]=2 <= 栈顶高度 h[2]=5，所以要弹出下标 2。", "codeLine": 7, "popIndex": 2, "popHeight": 5}, {"action": "calc-area", "i": 4, "currentHeight": 2, "stack": [1], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "弹出后 left=1，right=4。所以 width = 4 - (1) - 1 = 2，area = 5 × 2 = 10，ans 更新为 10。", "codeLine": 12, "popIndex": 2, "popHeight": 5, "left": 1, "right": 4, "width": 2, "area": 10, "oldAns": 6}, {"action": "push", "i": 4, "currentHeight": 2, "stack": [1, 4], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "把当前下标 4 入栈。现在栈里下标是 [1, 4]，对应高度是 [1, 2]。", "codeLine": 16, "pushIndex": 4, "pushHeight": 2}, {"action": "visit", "i": 5, "currentHeight": 3, "stack": [1, 4], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "开始处理 i=5，当前高度 h[i]=3。先判断会不会触发弹栈。", "codeLine": 6}, {"action": "push", "i": 5, "currentHeight": 3, "stack": [1, 4, 5], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "把当前下标 5 入栈。现在栈里下标是 [1, 4, 5]，对应高度是 [1, 2, 3]。", "codeLine": 16, "pushIndex": 5, "pushHeight": 3}, {"action": "visit", "i": 6, "currentHeight": 0, "stack": [1, 4, 5], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "开始处理 i=6，当前高度 h[i]=0。先判断会不会触发弹栈。", "codeLine": 6}, {"action": "compare-pop", "i": 6, "currentHeight": 0, "stack": [1, 4, 5], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "因为 h[i]=0 <= 栈顶高度 h[5]=3，所以要弹出下标 5。", "codeLine": 7, "popIndex": 5, "popHeight": 3}, {"action": "calc-area", "i": 6, "currentHeight": 0, "stack": [1, 4], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "弹出后 left=4，right=6。所以 width = 6 - (4) - 1 = 1，area = 3 × 1 = 3，ans 更新为 10。", "codeLine": 12, "popIndex": 5, "popHeight": 3, "left": 4, "right": 6, "width": 1, "area": 3, "oldAns": 10}, {"action": "compare-pop", "i": 6, "currentHeight": 0, "stack": [1, 4], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "因为 h[i]=0 <= 栈顶高度 h[4]=2，所以要弹出下标 4。", "codeLine": 7, "popIndex": 4, "popHeight": 2}, {"action": "calc-area", "i": 6, "currentHeight": 0, "stack": [1], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "弹出后 left=1，right=6。所以 width = 6 - (1) - 1 = 4，area = 2 × 4 = 8，ans 更新为 10。", "codeLine": 12, "popIndex": 4, "popHeight": 2, "left": 1, "right": 6, "width": 4, "area": 8, "oldAns": 10}, {"action": "compare-pop", "i": 6, "currentHeight": 0, "stack": [1], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "因为 h[i]=0 <= 栈顶高度 h[1]=1，所以要弹出下标 1。", "codeLine": 7, "popIndex": 1, "popHeight": 1}, {"action": "calc-area", "i": 6, "currentHeight": 0, "stack": [], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "弹出后 left=-1，right=6。所以 width = 6 - (-1) - 1 = 6，area = 1 × 6 = 6，ans 更新为 10。", "codeLine": 12, "popIndex": 1, "popHeight": 1, "left": -1, "right": 6, "width": 6, "area": 6, "oldAns": 10}, {"action": "push", "i": 6, "currentHeight": 0, "stack": [6], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "把当前下标 6 入栈。现在栈里下标是 [6]，对应高度是 [0]。", "codeLine": 16, "pushIndex": 6, "pushHeight": 0}, {"action": "done", "i": 6, "currentHeight": 0, "stack": [6], "ans": 10, "array": [2, 1, 5, 6, 2, 3, 0], "n": 6, "explanation": "遍历结束，最终最大矩形面积 ans=10。", "codeLine": 18}];
+const codeLines = ["vector<int> h(n + 1, 0);", "for (int i = 0; i < n; i++) cin >> h[i];", "stack<int> st;", "int ans = 0;", "", "for (int i = 0; i <= n; i++) {", "    while (!st.empty() && h[i] <= h[st.top()]) {", "        int height = h[st.top()];", "        st.pop();", "        int left = -1;", "        if (!st.empty()) left = st.top();", "        int width = i - left - 1;", "        int area = height * width;", "        ans = max(ans, area);", "    }", "    st.push(i);", "}", "cout << ans << endl;"];
+
+const slider = document.getElementById('slider');
+const stepText = document.getElementById('stepText');
+const hist = document.getElementById('hist');
+const explain = document.getElementById('explain');
+const stackchips = document.getElementById('stackchips');
+const curI = document.getElementById('curI');
+const curH = document.getElementById('curH');
+const curAns = document.getElementById('curAns');
+const curAction = document.getElementById('curAction');
+const calcMeta = document.getElementById('calcMeta');
+const code = document.getElementById('code');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const playBtn = document.getElementById('playBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+slider.max = steps.length - 1;
+let idx = 0;
+let timer = null;
+
+function label(action){
+  const mp = {init:'初始化', visit:'处理当前 i', 'compare-pop':'发现需要弹栈', 'calc-area':'计算面积', push:'当前下标入栈', done:'结束'};
+  return mp[action] || action;
+}
+
+function renderCode(active){
+  code.innerHTML = '';
+  codeLines.forEach((line, i) => {
+    const div = document.createElement('div');
+    div.className = 'line' + ((i+1) === active ? ' active' : '');
+    div.innerHTML = `<span class="ln">${i+1}</span><span>${line.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`;
+    code.appendChild(div);
+  });
+}
+
+function render(stepIndex){
+  idx = stepIndex;
+  slider.value = stepIndex;
+  stepText.textContent = `${stepIndex+1} / ${steps.length}`;
+  const s = steps[stepIndex];
+
+  curI.textContent = s.i;
+  curH.textContent = s.currentHeight;
+  curAns.textContent = s.ans;
+  curAction.textContent = label(s.action);
+  explain.innerHTML = s.explanation;
+  renderCode(s.codeLine);
+
+  stackchips.innerHTML = '';
+  if (s.stack.length === 0){
+    stackchips.innerHTML = '<div class="chip">空栈</div>';
+  } else {
+    s.stack.forEach(pos => {
+      const d = document.createElement('div');
+      d.className = 'chip';
+      d.textContent = `下标 ${pos}（高 ${s.array[pos]}）`;
+      stackchips.appendChild(d);
+    });
+  }
+
+  calcMeta.innerHTML = '';
+  const fields = [];
+  if ('popIndex' in s) fields.push(['弹出下标', s.popIndex]);
+  if ('popHeight' in s) fields.push(['弹出高度', s.popHeight]);
+  if ('left' in s) fields.push(['left', s.left]);
+  if ('right' in s) fields.push(['right', s.right]);
+  if ('width' in s) fields.push(['width', s.width]);
+  if ('area' in s) fields.push(['area', s.area]);
+  if ('pushIndex' in s) fields.push(['入栈下标', s.pushIndex]);
+  if ('pushHeight' in s) fields.push(['入栈高度', s.pushHeight]);
+  if (fields.length === 0){
+    calcMeta.innerHTML = '<div class="stat"><div class="k">说明</div><div class="v" style="font-size:15px;">本步暂无额外计算字段</div></div>';
+  } else {
+    fields.forEach(([k,v]) => {
+      const box = document.createElement('div');
+      box.className = 'stat';
+      box.innerHTML = `<div class="k">${k}</div><div class="v">${v}</div>`;
+      calcMeta.appendChild(box);
+    });
+  }
+
+  hist.innerHTML = '';
+  const arr = s.array;
+  const maxH = Math.max(...arr);
+  const H = 300;
+
+  arr.forEach((val, barIdx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'barwrap';
+    const bar = document.createElement('div');
+    let cls = 'bar';
+    if (barIdx === s.i) cls += ' current';
+    if (s.stack.includes(barIdx)) cls += ' instack';
+    if ((s.action === 'compare-pop' || s.action === 'calc-area') && s.popIndex === barIdx) cls += ' popped';
+    if ('left' in s && s.left === barIdx) cls += ' boundary';
+    if ('right' in s && s.right === barIdx) cls += ' boundary';
+    if (s.action === 'push' && s.pushIndex === barIdx) cls += ' pushing';
+    bar.className = cls;
+    bar.style.height = Math.max(8, val / maxH * H) + 'px';
+    const num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = val;
+    bar.appendChild(num);
+    const xlab = document.createElement('div');
+    xlab.className = 'xlab';
+    xlab.textContent = (barIdx === s.n) ? `${barIdx}(补0)` : `${barIdx}`;
+    wrap.appendChild(bar);
+    wrap.appendChild(xlab);
+    hist.appendChild(wrap);
+  });
+
+  if (s.action === 'calc-area'){
+    const leftIdx = s.left + 1;
+    const rightIdx = s.right - 1;
+    const widthBars = rightIdx - leftIdx + 1;
+    if (widthBars > 0){
+      const totalCell = (hist.clientWidth - 24) / arr.length;
+      const ov = document.createElement('div');
+      ov.className = 'rect';
+      const leftPx = 12 + leftIdx * totalCell + totalCell * 0.15;
+      const widthPx = totalCell * widthBars * 0.7 + totalCell * (widthBars - 1) * 0.3;
+      ov.style.left = leftPx + 'px';
+      ov.style.width = widthPx + 'px';
+      ov.style.height = Math.max(8, s.popHeight / maxH * H) + 'px';
+      ov.style.bottom = '28px';
+      hist.appendChild(ov);
+    }
+  }
+
+  prevBtn.disabled = (stepIndex === 0);
+  nextBtn.disabled = (stepIndex === steps.length - 1);
+}
+
+function stopPlay(){
+  if (timer){
+    clearInterval(timer);
+    timer = null;
+    playBtn.textContent = '自动播放';
+  }
+}
+
+prevBtn.onclick = () => { stopPlay(); if (idx > 0) render(idx - 1); };
+nextBtn.onclick = () => { stopPlay(); if (idx < steps.length - 1) render(idx + 1); };
+resetBtn.onclick = () => { stopPlay(); render(0); };
+slider.oninput = (e) => { stopPlay(); render(+e.target.value); };
+playBtn.onclick = () => {
+  if (timer){ stopPlay(); return; }
+  playBtn.textContent = '暂停';
+  timer = setInterval(() => {
+    if (idx < steps.length - 1) render(idx + 1);
+    else stopPlay();
+  }, 1600);
+};
+
+render(0);
+</script>
+</body>
+</html>
