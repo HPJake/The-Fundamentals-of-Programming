@@ -3,7 +3,7 @@
 #include <algorithm>
 using namespace std;
 
-// C++³õÊ¼Ä£°å³ÌÐò
+// C++ï¿½ï¿½Ê¼Ä£ï¿½ï¿½ï¿½ï¿½ï¿½
 
 bool judge(int x){
 	if (x % 7 == 0) return 1;

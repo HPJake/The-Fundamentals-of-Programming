@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>放苹果｜递归动画实验室</title>
+<style>
+:root{--ink:#172437;--muted:#66778b;--blue:#295fd3;--blueSoft:#eaf1ff;--purple:#8454ca;--purpleSoft:#f2ecfc;--green:#0e8466;--greenSoft:#e7f6f0;--line:#e2e9f2;--paper:#fff;--bg:#f5f8fd;--orange:#e1a037;--mono:'SFMono-Regular',Consolas,'Liberation Mono',monospace}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);background:var(--bg);font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;line-height:1.58}
+button,input{font:inherit}button{cursor:pointer}button:disabled{opacity:.42;cursor:not-allowed}
+.shell{max-width:1200px;margin:auto;padding:32px 22px 58px}
+.hero{display:flex;gap:20px;align-items:start;justify-content:space-between;margin-bottom:23px;flex-wrap:wrap}
+.kicker{display:inline-block;font-size:12px;letter-spacing:.12em;color:var(--blue);font-weight:800;margin-bottom:7px}
+h1{font-size:clamp(28px,4vw,43px);line-height:1.2;letter-spacing:-.04em;margin:0 0 13px}p{margin:0;color:var(--muted)}
+.hero p{max-width:760px;font-size:15px}
+.badge{display:inline-flex;align-items:center;background:#e9effb;color:#234d98;border:1px solid #d5e2fb;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700}
+.panel{border:1px solid var(--line);background:var(--paper);border-radius:17px;box-shadow:0 8px 28px rgba(37,61,103,.045)}
+.control{padding:17px 20px;display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-bottom:17px}
+.control label{font-weight:700;font-size:13px;display:flex;gap:7px;flex-direction:column}
+.control input[type=number]{width:110px;padding:10px 13px;background:#fbfcff;border-radius:9px;border:1px solid #ccd8e9;color:var(--ink);font-size:17px;font-weight:650}
+.btn{background:#fff;border:1px solid #d0dbea;color:#293b56;border-radius:10px;padding:10px 13px;font-weight:750;box-shadow:0 1px 2px rgba(11,30,67,.035);transition:.16s}
+.btn:hover:not(:disabled){transform:translateY(-1px);border-color:#8aa8de}.btn.primary{background:var(--blue);border-color:var(--blue);color:white}.btn.solid{background:#ecf2ff;color:#2855ae;border-color:#ccdbf5}
+.sep{height:24px;width:1px;background:var(--line);margin:0 4px}
+.tiny{font-size:12px;color:var(--muted)}
+.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-bottom:17px}
+.metric{padding:17px 19px}.metric .name{color:var(--muted);font-size:12px;font-weight:750}.metric .value{font-size:27px;line-height:1.45;font-weight:800;letter-spacing:-.02em}.metric small{font-size:12px;color:var(--muted)}
+.sectionTitle{font-size:17px;font-weight:800;margin:0 0 12px}.sectionTitle small{font-size:12px;color:var(--muted);font-weight:400;margin-left:8px}
+.split{display:grid;grid-template-columns: minmax(340px,.9fr) minmax(400px,1.1fr);gap:17px;margin-bottom:17px}
+.codePanel,.viewPanel,.treePanel,.resultPanel{padding:20px}
+.codeBox{border-radius:12px;overflow:hidden;background:#142239;color:#e9f3ff;font:13px/2.25 var(--mono);padding:14px 0;margin-top:8px}
+.codeLine{display:flex;gap:12px;align-items:baseline;padding:0 17px;white-space:pre;min-height:28px;border-left:3px solid transparent;transition:.18s}
+.codeLine.active{background:#2a4772;border-color:#73b5ff}.num{display:inline-block;width:20px;color:#7993b6;text-align:right;user-select:none;flex:0 0 20px}
+.kw{color:#c4b5ff}.fun{color:#8ed4ff}.literal{color:#f7d08a}
+.explain{margin-top:13px;background:#f1f5fc;border:1px solid #dce7f5;border-radius:11px;padding:13px 15px;min-height:85px;font-size:14px;color:#344966}
+.explain strong{color:#203e73}
+.pill{font:700 12px var(--mono);background:#eaf1ff;color:#1f56ba;padding:3px 7px;border-radius:6px;white-space:nowrap}
+.stageHeader{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap}
+.currentName{font-size:23px;font-weight:850;color:#172844;font-family:var(--mono);letter-spacing:-.035em}
+.phase{font-size:12px;padding:5px 10px;border-radius:999px;background:#eff4fc;color:#496585;font-weight:700}
+.detail{min-height:47px;color:#4c607b;font-size:14px;margin:9px 0 12px}
+.rule{border:1px dashed #cbd9eb;background:#f7faff;border-radius:10px;padding:10px 12px;font:700 14px var(--mono);line-height:1.7}
+.rule .dim{color:#97a8be}.rule .blue{color:#2459c3}.rule .purple{color:#7847c0}
+.branches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin-top:13px}
+.branch{border:1px solid #dbe5f4;border-radius:12px;padding:12px 11px;background:#fbfcff;transition:.2s;min-height:155px}
+.branch.empty{--accent:var(--blue)}.branch.full{--accent:var(--purple)}
+.branch.active{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
+.branch.inactive{opacity:.38;filter:grayscale(.4)}
+.branchTag{font-size:12px;color:var(--accent);font-weight:850}.branchExpr{font:700 14px var(--mono);margin-top:3px;color:#263751}.branchText{color:#61738e;font-size:12px;margin-top:8px}
+.plates{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px;align-items:center;min-height:42px}
+.plate{width:32px;height:30px;display:flex;align-items:center;justify-content:center;border:2px solid #adc4e2;border-bottom:5px solid #adc4e2;border-radius:6px 6px 13px 13px;background:white;font-size:17px;position:relative}
+.plate.emptyPlate{background:#f0f4f8;border-style:dashed;color:#a6b1c1}.branch.full .plate{border-color:#ba9bdd}
+.stackArea{margin-top:15px;padding:12px 13px;background:#f7faff;border-radius:10px;min-height:82px}
+.stackTitle{font-size:11px;font-weight:800;color:var(--muted);margin-bottom:9px}
+.stackList{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.stackItem{background:#fff;border:1px solid #d9e4f5;color:#3a567b;padding:5px 8px;border-radius:6px;font:700 12px var(--mono)}.stackItem:last-child{border-color:#7198db;background:#e7efff;color:#2055ad}.stackArrow{color:#a1b0c3}
+.playbar{margin-bottom:17px;padding:15px 19px}
+.playtop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:11px}
+.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.controls .btn{padding:8px 12px;font-size:13px}
+.speed{display:flex;align-items:center;gap:9px;font-size:12px;color:#58718e;margin-left:auto}
+.speed input{width:107px;accent-color:var(--blue)}
+.progress{width:100%;height:8px;background:#e9eff8;border-radius:999px;overflow:hidden}.progress>div{height:100%;background:linear-gradient(90deg,#5a9bf3,#6566d8);width:0%;transition:width .18s}
+.stepTitle{font-size:13px;font-weight:760;color:#476582}
+.bottom{display:grid;grid-template-columns:minmax(340px,.96fr) minmax(400px,1.04fr);gap:17px}
+.treeInfo{font-size:12px;color:var(--muted);margin-bottom:9px}
+.treeViewport{height:374px;overflow:auto;background:#fbfcff;border:1px solid #e3e9f4;border-radius:10px;padding:8px 6px 8px 0;scrollbar-color:#cbd7e9 #fbfcff}
+.treeRow{height:33px;display:flex;align-items:center;gap:8px;padding-right:8px;white-space:nowrap;border-radius:6px;transition:background .15s;font-size:12px;color:#51647e}
+.treeRow.focus{background:#e8f0ff;color:#17478e;outline:1px solid #b8cff8}.treeRow.complete{color:#157354}
+.treeIndent{height:100%;flex-shrink:0}.treeNode{font:700 12px var(--mono)}.edgeTag{font-size:10px;border-radius:4px;padding:2px 5px;font-weight:750}
+.edgeTag.empty{background:var(--blueSoft);color:var(--blue)}.edgeTag.full{background:var(--purpleSoft);color:var(--purple)}
+.treeStatus{margin-left:auto;padding:1px 7px;border-radius:6px;font:700 11px var(--mono);color:#55708d;background:#e8eef6}
+.treeStatus.done{background:var(--greenSoft);color:var(--green)}
+.resultIntro{font-size:13px;color:var(--muted);margin-bottom:13px}
+.resultGroups{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.resultGroup{border-radius:11px;padding:11px 10px;border:1px solid var(--line);background:#fbfcff;max-height:363px;overflow:auto}
+.resultGroup header{display:flex;gap:6px;justify-content:space-between;align-items:center;margin-bottom:9px}
+.resultGroup header span{font-size:12px;font-weight:820}.resultGroup header b{font-size:15px}
+.resultGroup.empty{border-top:3px solid var(--blue)}.resultGroup.full{border-top:3px solid var(--purple)}
+.allocation{display:flex;gap:4px;align-items:center;margin-bottom:7px;min-height:26px;flex-wrap:nowrap}
+.allocPlate{min-width:27px;height:25px;padding:0 4px;border:1px solid #bbcce3;border-bottom-width:3px;border-radius:5px 5px 10px 10px;background:white;text-align:center;line-height:22px;font-weight:780;font:700 11px/22px var(--mono)}
+.allocPlate.zero{color:#9baabc;background:#f0f3f8;border-style:dashed}
+.resultGroup .emptyNotice{color:var(--muted);font-size:12px}
+footer{color:#8190a4;font-size:12px;margin:21px 2px 0}
+@media(max-width:900px){.split,.bottom{grid-template-columns:1fr}.hero{margin-bottom:20px}.treeViewport{height:280px}}
+@media(max-width:600px){.shell{padding:18px 10px 35px}.overview{grid-template-columns:1fr}.metric{padding:13px 16px}.metric .value{font-size:23px}.control,.codePanel,.viewPanel,.treePanel,.resultPanel{padding:14px}.branches{grid-template-columns:1fr}.resultGroups{gap:7px}.resultGroup{padding:9px 6px}.allocation{gap:2px}.allocPlate{min-width:22px;padding:0 2px}.sep{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="hero">
+    <div><span class="kicker">C++ 算法可视化 · 递归入门</span><h1>放苹果：递归到底在做什么？</h1>
+    <p>跟着代码一步一步往下调用、往上返回。重点观察：为什么 <strong>“至少一个盘子为空”</strong> 和 <strong>“全部盘子非空”</strong> 两类方案相加，恰好就是总答案。</p></div>
+    <span class="badge">可离线运行 · 逐步 / 自动播放</span>
+  </header>
+
+  <section class="panel control" aria-label="实验设置">
+    <label>苹果数 M <input id="mInput" type="number" min="0" max="12" value="7" /></label>
+    <label>盘子数 N <input id="nInput" type="number" min="1" max="10" value="3" /></label>
+    <button id="rebuild" class="btn primary">重新生成动画</button>
+    <div class="sep"></div>
+    <button class="btn" data-preset="7,3">例子：7，3</button>
+    <button class="btn" data-preset="5,3">试试：5，3</button>
+    <button class="btn" data-preset="4,5">盘子更多：4，5</button>
+    <span class="tiny">为了便于看清递归树，演示支持 0≤M≤12、1≤N≤10。</span>
+  </section>
+
+  <section class="overview" aria-label="计算概览">
+    <div class="panel metric"><div class="name">当前计算</div><div class="value" id="metricProblem">f(7, 3)</div><small>把 M 个相同苹果放进 N 个相同盘子</small></div>
+    <div class="panel metric"><div class="name">最终方案数</div><div class="value" id="metricAnswer">8</div><small id="metricExplain">8 种互不重复的放法</small></div>
+    <div class="panel metric"><div class="name">当前演示进度</div><div class="value" id="metricStep">1 / 1</div><small id="metricPhase">准备开始</small></div>
+  </section>
+
+  <section class="panel playbar" aria-label="播放控制">
+    <div class="playtop">
+      <div><div class="stepTitle" id="stepLabel">逐步观察递归调用</div><div class="tiny">可以反复回退，观察一次调用结束后答案如何返回上一层。</div></div>
+      <div class="controls">
+        <button id="prev" class="btn">← 上一步</button>
+        <button id="play" class="btn primary">▶ 自动播放</button>
+        <button id="next" class="btn solid">下一步 →</button>
+        <button id="restart" class="btn">↺ 从头开始</button>
+      </div>
+      <label class="speed">速度 <input type="range" id="speed" min="1" max="5" value="3" /> <span id="speedText">正常</span></label>
+    </div>
+    <div class="progress" aria-hidden="true"><div id="progressFill"></div></div>
+  </section>
+
+  <section class="split">
+    <article class="panel codePanel">
+      <h2 class="sectionTitle">① 对着代码看 <small>亮起的行，就是这一步正在做的事</small></h2>
+      <div class="codeBox" id="codeBox">
+        <div class="codeLine" data-line="1"><span class="num">1</span><span><span class="kw">int</span> <span class="fun">f</span>(<span class="kw">int</span> m, <span class="kw">int</span> n) {</span></div>
+        <div class="codeLine" data-line="2"><span class="num">2</span><span>    <span class="kw">if</span> (m == <span class="literal">0</span> || n == <span class="literal">1</span>) <span class="kw">return</span> <span class="literal">1</span>;</span></div>
+        <div class="codeLine" data-line="3"><span class="num">3</span><span>    <span class="kw">if</span> (m &lt; n) <span class="kw">return</span> <span class="fun">f</span>(m, n - 1);</span></div>
+        <div class="codeLine" data-line="4"><span class="num">4</span><span>    <span class="kw">return</span> <span class="fun">f</span>(m, n - 1) + <span class="fun">f</span>(m - n, n);</span></div>
+        <div class="codeLine" data-line="5"><span class="num">5</span><span>}</span></div>
+      </div>
+      <div class="explain" id="codeExplain" aria-live="polite">正在准备进入第一次递归调用……</div>
+      <div class="stackArea">
+        <div class="stackTitle">递归调用栈 · 从左到右表示一层层深入</div>
+        <div id="stackList" class="stackList"></div>
+      </div>
+    </article>
+    <article class="panel viewPanel">
+      <h2 class="sectionTitle">② 当前正在解决的问题</h2>
+      <div class="stageHeader"><div id="currentName" class="currentName">f(7, 3)</div><span class="phase" id="phase">进入函数</span></div>
+      <p id="detail" class="detail">先确认当前函数的含义……</p>
+      <div class="rule" id="rule">f(7,3) = f(7,2) + f(4,3)</div>
+      <div class="branches">
+        <div class="branch empty" id="emptyBranch">
+          <div class="branchTag">A · 至少一个盘子为空</div>
+          <div class="branchExpr" id="leftExpr">f(7, 2)</div>
+          <div class="plates" id="emptyPlates"></div>
+          <div class="branchText" id="emptyDesc">拿掉一个空盘，问题变成 M 个苹果放 N−1 个盘子。</div>
+        </div>
+        <div class="branch full" id="fullBranch">
+          <div class="branchTag">B · 所有盘子都非空</div>
+          <div class="branchExpr" id="rightExpr">f(4, 3)</div>
+          <div class="plates" id="fullPlates"></div>
+          <div class="branchText" id="fullDesc">先给每个盘子 1 个，剩下 M−N 个继续分。</div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="bottom">
+    <article class="panel treePanel">
+      <h2 class="sectionTitle">③ 递归调用记录 <small>蓝色是当前函数，绿色表示已经返回</small></h2>
+      <p class="treeInfo">看清“先递归求左边，再递归求右边，最后把结果相加”的顺序。点击任意节点可跳到它第一次被调用的时候。</p>
+      <div id="tree" class="treeViewport" aria-label="递归调用记录"></div>
+    </article>
+    <article class="panel resultPanel">
+      <h2 class="sectionTitle">④ 为什么两类方案相加？</h2>
+      <p id="resultIntro" class="resultIntro">盘子完全相同，因此用从小到大排列的数量表示同一种放法。</p>
+      <div class="resultGroups">
+        <div class="resultGroup empty"><header><span style="color:var(--blue)">至少一个空盘</span><b id="emptyCount">4 种</b></header><div id="emptyResults"></div></div>
+        <div class="resultGroup full"><header><span style="color:var(--purple)">所有盘子非空</span><b id="fullCount">4 种</b></header><div id="fullResults"></div></div>
+      </div>
+      <p class="tiny" style="margin-top:11px" id="resultMath">两个类别互不重叠且覆盖全部情况，所以 4 + 4 = 8。</p>
+    </article>
+  </section>
+
+  <footer>本页展示的是常见递归写法 <code>f(m,n)</code>：m=0 或 n=1 时返回 1；m&lt;n 时减少一个盘子；否则分成“有空盘”和“全非空”两类。这里演示的是数学递推过程，不是直接读取你未贴出的 AC 代码。</footer>
+</div>
+<script>
+(function(){
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  let m=7,n=3, nodes=[],events=[],idx=0,timer=null,answer=0;
+  const maxNodes=5500;
+  const words={enter:'进入递归函数',base:'命中终止条件',onlyEmpty:'盘子多于苹果',split:'分类讨论',leftDone:'左分支返回',rightDone:'右分支返回',returned:'返回上一层'};
+  const codeLine={enter:1,base:2,onlyEmpty:3,split:4,leftDone:4,rightDone:4,returned:5};
+  function count(m,n){if(m===0||n===1)return 1;if(m<n)return count(m,n-1);return count(m,n-1)+count(m-n,n)}
+  function createTrace(){
+    nodes=[];events=[];let stack=[];
+    function push(type,node,extra={}){events.push({type,id:node.id,stack:stack.slice(),...extra});}
+    function walk(a,b,depth,parent,edge){
+      const node={id:nodes.length,m:a,n:b,depth,parent,edge,enter:events.length,ret:Infinity,value:null};
+      nodes.push(node);stack.push(node.id);push('enter',node);
+      let value;
+      if(a===0||b===1){push('base',node);value=1;}
+      else if(a<b){push('onlyEmpty',node);value=walk(a,b-1,depth+1,node.id,'empty');}
+      else{
+        push('split',node);
+        const l=walk(a,b-1,depth+1,node.id,'empty');
+        push('leftDone',node,{left:l});
+        const r=walk(a-b,b,depth+1,node.id,'full');
+        push('rightDone',node,{left:l,right:r});
+        value=l+r;
+      }
+      node.value=value;node.ret=events.length;push('returned',node,{value});stack.pop();return value;
+    }
+    answer=walk(m,n,0,null,'root');
+  }
+  function allPartitions(m,n){
+    const result=[];
+    function go(remain,min,path){
+      if(remain===0){result.push(Array(n-path.length).fill(0).concat(path));return;}
+      if(path.length===n)return;
+      for(let v=min;v<=remain;v++)go(remain-v,v,[...path,v]);
+    }
+    go(m,1,[]);return result;
+  }
+  function esc(x){return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function buildSolutions(){
+    const all=allPartitions(m,n);
+    const withEmpty=all.filter(a=>a[0]===0);
+    const noEmpty=all.filter(a=>a[0]!==0);
+    $('emptyCount').textContent=withEmpty.length+' 种';$('fullCount').textContent=noEmpty.length+' 种';
+    function drawList(list){return list.length?list.map(a=>'<div class="allocation">'+a.map(v=>'<span class="allocPlate '+(v===0?'zero':'')+'" title="'+v+' 个苹果">'+v+'</span>').join('')+'</div>').join(''):'<div class="emptyNotice">这一类不存在</div>'}
+    $('emptyResults').innerHTML=drawList(withEmpty);
+    $('fullResults').innerHTML=drawList(noEmpty);
+    $('resultMath').textContent='两类互不重叠、也没有遗漏：'+withEmpty.length+' + '+noEmpty.length+' = '+all.length+' 种。';
+    $('resultIntro').textContent=m+' 个相同苹果放进 '+n+' 个相同盘子，按每盘苹果数从小到大写出来；交换盘子不算新方案。';
+  }
+  function stop(){if(timer){clearInterval(timer);timer=null;}$('play').textContent='▶ 自动播放';}
+  function intervalMs(){return ({1:1650,2:1150,3:800,4:500,5:250})[Number($('speed').value)]||800}
+  function start(){if(timer){stop();return}if(idx>=events.length-1)idx=0;$('play').textContent='Ⅱ 暂停';timer=setInterval(()=>{if(idx<events.length-1){idx++;render()}else stop();},intervalMs());render()}
+  function plates(b,k){
+    const make=(i)=>{
+      if(k==='empty')return '<div class="plate '+(i===b-1?'emptyPlate':'')+'" title="'+(i===b-1?'示意：一个空盘':'其余盘子待分配')+'">'+(i===b-1?'∅':'?')+'</div>';
+      return '<div class="plate" title="每盘先拿出一个苹果">🍎</div>';
+    };
+    return Array.from({length:b},(_,i)=>make(i)).join('');
+  }
+  function phaseText(e,node){
+    switch(e.type){
+      case 'enter':return '现在要计算 f('+node.m+', '+node.n+')。递归的任务是：数一数分法有多少种。';
+      case 'base':return node.m===0?'没有苹果：盘子全空，只有 1 种放法。':'只有一个盘子：所有苹果只能放进去，只有 1 种放法。';
+      case 'onlyEmpty':return '苹果比盘子少：所有盘子非空是不可能的。一定有空盘，所以只需要计算 f('+node.m+', '+(node.n-1)+')。';
+      case 'split':return '把所有放法分成两类：A 至少一个空盘，B 全部非空。这两类没有交集，所以总数可以相加。';
+      case 'leftDone':return '“至少一个空盘”的分支已经算完，得到 '+e.left+' 种。现在才会去计算右边的“全部非空”分支。';
+      case 'rightDone':return '两个分支都算完：有空盘 '+e.left+' 种，全部非空 '+e.right+' 种；相加就是 '+(e.left+e.right)+' 种。';
+      case 'returned':return 'f('+node.m+', '+node.n+') 计算结束，返回 '+e.value+'。这份结果交给上一层，上一层就可以继续计算。';
+      default:return '';
+    }
+  }
+  function lineExplain(e,node){
+    const a=node.m,b=node.n;
+    if(e.type==='enter')return '<strong>读函数含义：</strong><span class="pill">f('+a+','+b+')</span> 代表 '+a+' 个相同苹果、'+b+' 个相同盘子的放法数量。';
+    if(e.type==='base')return '<strong>终止条件：</strong>'+(a===0?'苹果已经为 0，只有一种“都空着”的方案。':'只剩一个盘子，所有苹果必须放进它，恰好一种。')+' 所以 <span class="pill">return 1</span>。';
+    if(e.type==='onlyEmpty')return '<strong>只走一条分支：</strong>因为 '+a+' &lt; '+b+'，不可能让所有盘子都有苹果；去掉一个必定为空的盘子，计算 <span class="pill">f('+a+','+(b-1)+')</span>。';
+    if(e.type==='split')return '<strong>最重要的一行：</strong>左边 <span class="pill">f('+a+','+(b-1)+')</span> 处理“有空盘”；右边 <span class="pill">f('+(a-b)+','+b+')</span> 处理“全非空”。';
+    if(e.type==='leftDone')return '<strong>先左后右：</strong>C++ 会先算出第一个递归调用的返回值 <span class="pill">'+e.left+'</span>，再开始计算 <span class="pill">f('+(a-b)+','+b+')</span>。';
+    if(e.type==='rightDone')return '<strong>合并答案：</strong>两类方案互斥且穷尽，所以 <span class="pill">'+e.left+' + '+e.right+' = '+(e.left+e.right)+'</span>。';
+    return '<strong>返回上一层：</strong>当前调用完成，<span class="pill">return '+e.value+'</span>。上一层等待的值终于得到了。';
+  }
+  function renderTree(e){
+    const at=idx;
+    const shown=nodes.filter(node=>node.enter<=at);
+    const html=shown.map(node=>{
+      const focus=node.id===e.id;
+      const done=node.ret<=at;
+      const label=node.edge==='empty'?'<span class="edgeTag empty">空盘</span>':node.edge==='full'?'<span class="edgeTag full">全非空</span>':'<span class="edgeTag" style="color:#64748b">起点</span>';
+      return '<div class="treeRow '+(focus?'focus ':'')+(done?'complete':'')+'" data-id="'+node.id+'" style="padding-left:'+(10+node.depth*22)+'px" title="点击回到此函数开始的位置">'+label+' <span class="treeNode">f('+node.m+','+node.n+')</span><span class="treeStatus '+(done?'done':'')+'">'+(done?'='+node.value:'计算中…')+'</span></div>';
+    }).join('');
+    $('tree').innerHTML=html;
+    $('tree').querySelectorAll('.treeRow').forEach(row=>row.addEventListener('click',()=>{stop();idx=nodes[Number(row.dataset.id)].enter;render()}));
+    const item=$('tree').querySelector('.focus');
+    if(item){const holder=$('tree');const top=item.offsetTop-holder.offsetTop;if(top<holder.scrollTop+12||top>holder.scrollTop+holder.clientHeight-52)holder.scrollTop=Math.max(0,top-holder.clientHeight/2)}
+  }
+  function render(){
+    const e=events[idx],node=nodes[e.id],a=node.m,b=node.n;
+    $('metricProblem').textContent='f('+m+', '+n+')';$('metricAnswer').textContent=answer;$('metricExplain').textContent=answer+' 种互不重复的放法';
+    $('metricStep').textContent=(idx+1)+' / '+events.length;
+    $('metricPhase').textContent=words[e.type];
+    $('stepLabel').textContent='第 '+(idx+1)+' 步：'+words[e.type];
+    $('progressFill').style.width=(100*(idx+1)/events.length)+'%';
+    $('prev').disabled=idx===0;$('next').disabled=idx===events.length-1;
+    $('currentName').textContent='f('+a+', '+b+')';$('phase').textContent=words[e.type];$('detail').textContent=phaseText(e,node);
+    $('codeExplain').innerHTML=lineExplain(e,node);
+    document.querySelectorAll('.codeLine').forEach(el=>el.classList.toggle('active',Number(el.dataset.line)===codeLine[e.type]));
+    $('stackList').innerHTML=e.stack.map((id,i)=>'<span class="stackItem">f('+nodes[id].m+','+nodes[id].n+')</span>'+(i===e.stack.length-1?'':'<span class="stackArrow">→</span>')).join('');
+    const term=a===0||b===1;
+    const tooMany=a<b;
+    let expr=term?('f('+a+','+b+') = 1'):tooMany?('f('+a+','+b+') = f('+a+','+(b-1)+')'):('f('+a+','+b+') = f('+a+','+(b-1)+') + f('+(a-b)+','+b+')');
+    if(e.type==='rightDone')expr+=' = '+e.left+' + '+e.right+' = '+(e.left+e.right);
+    else if(e.type==='returned')expr+=' = '+e.value;
+    $('rule').textContent=expr;
+    $('leftExpr').textContent=term?'—':'f('+a+', '+(b-1)+')';
+    $('rightExpr').textContent=term?'—':tooMany?'不可能':'f('+(a-b)+', '+b+')';
+    $('emptyPlates').innerHTML=plates(b,'empty');
+    $('fullPlates').innerHTML=plates(b,'full');
+    $('emptyDesc').textContent=term?'基本情况，直接返回 1。':'至少拿掉一个空盘，其余盘子继续分配 '+a+' 个苹果。';
+    $('fullDesc').textContent=term?'基本情况，不再分类。':tooMany?'苹果不够给每个盘子 1 个；这一类不存在。':'每个盘子先放 1 个🍎，剩下 '+(a-b)+' 个苹果继续分。';
+    const activeEdge=node.edge;
+    const leftActive=e.type==='leftDone'||activeEdge==='empty';
+    const rightActive=e.type==='rightDone'||activeEdge==='full';
+    $('emptyBranch').className='branch empty'+(term?' inactive':leftActive?' active':'');
+    $('fullBranch').className='branch full'+((term||tooMany)?' inactive':rightActive?' active':'');
+    renderTree(e);
+  }
+  function rebuild(){
+    stop();
+    const mm=Number($('mInput').value),nn=Number($('nInput').value);
+    if(!Number.isInteger(mm)||!Number.isInteger(nn)||mm<0||mm>12||nn<1||nn>10){alert('演示范围：苹果 M 为 0～12，盘子 N 为 1～10。');return}
+    m=mm;n=nn;
+    createTrace();if(nodes.length>maxNodes){alert('递归树较大，请缩小 M/N 以便演示。');return}
+    idx=0;buildSolutions();$('tree').scrollTop=0;render();
+  }
+  $('rebuild').addEventListener('click',rebuild);
+  $('prev').addEventListener('click',()=>{stop();if(idx>0)idx--;render()});
+  $('next').addEventListener('click',()=>{stop();if(idx<events.length-1)idx++;render()});
+  $('restart').addEventListener('click',()=>{stop();idx=0;$('tree').scrollTop=0;render()});
+  $('play').addEventListener('click',start);
+  $('speed').addEventListener('input',()=>{const a={1:'很慢',2:'慢速',3:'正常',4:'快速',5:'很快'};$('speedText').textContent=a[$('speed').value];if(timer){stop();start()}});
+  document.querySelectorAll('[data-preset]').forEach(button=>button.addEventListener('click',()=>{const [a,b]=button.dataset.preset.split(',');$('mInput').value=a;$('nInput').value=b;rebuild()}));
+  document.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement)return;if(e.key==='ArrowRight'){$('next').click();e.preventDefault()}else if(e.key==='ArrowLeft'){$('prev').click();e.preventDefault()}else if(e.key===' '){$('play').click();e.preventDefault()}});
+  rebuild();
+})();
+</script>
+</body>
+</html>
