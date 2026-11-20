@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>八皇后｜DFS 与回溯交互动画</title>
+  <style>
+    :root{
+      --ink:#182638;--muted:#687b89;--navy:#0d2738;--navy2:#123951;--teal:#0c8a82;
+      --aqua:#d2f3ed;--paper:#f5f9f9;--line:#e2ebec;--warn:#a6610a;
+      --shadow:0 20px 58px rgba(14,46,59,.10);--radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--paper);line-height:1.65}
+    button,input,select{font:inherit}
+    button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #76c9bc;outline-offset:2px}
+    .hero{color:#eafffc;background:radial-gradient(circle at 93% 8%,rgba(52,198,169,.22),transparent 32%),linear-gradient(126deg,#071f2f,#123b50 69%,#165464);padding:30px max(20px,calc((100vw - 1240px)/2)) 36px}
+    .hero-top{display:flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;color:#89e6d6}
+    .hero-logo{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border:1px solid #85cfcb;border-radius:9px;font-size:18px}
+    h1{font-size:clamp(28px,4.5vw,48px);margin:10px 0 9px;letter-spacing:-.035em;line-height:1.25;font-weight:850}
+    .hero p{margin:0;color:#c4dadf;max-width:810px;font-size:15px}
+    .hero-bottom{display:flex;gap:12px;flex-wrap:wrap;margin-top:21px;align-items:center}
+    .hero-tag{border:1px solid rgba(142,229,217,.35);padding:4px 11px;border-radius:100px;color:#dbf9f4;background:rgba(255,255,255,.05);font-size:12px}
+    .page{max-width:1280px;margin:0 auto;padding:24px 20px 60px}
+    .intro{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:18px}
+    .switcher{display:inline-flex;padding:5px;background:#e6eeef;border:1px solid #d6e4e5;border-radius:13px;gap:5px}
+    .switcher button{padding:9px 16px;border:0;border-radius:9px;background:transparent;color:#516a77;font-weight:750;font-size:14px}
+    .switcher button.active{background:#fff;color:#0f5960;box-shadow:0 2px 10px rgba(18,58,79,.13)}
+    .tipline{color:#637681;font-size:13px}.tipline b{color:#167e7b}
+    .layout{display:grid;grid-template-columns:minmax(0,1.13fr) minmax(345px,.87fr);gap:20px;align-items:start}
+    .card{background:white;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .board-card{padding:22px 24px 20px}
+    .panel-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+    .panel-title h2{font-size:18px;margin:0;letter-spacing:-.02em}
+    .caption-label{font-size:12px;color:#759097;font-weight:700}
+    .count-chip{font-size:12px;background:#e7f6f2;color:#0f7169;border:1px solid #c4e7e0;border-radius:99px;padding:5px 11px;font-weight:750;white-space:nowrap}
+    .board-holder{max-width:535px;margin:0 auto;padding:0 2px}
+    .col-labels{display:grid;margin-left:24px;height:24px;align-items:center;color:#57717c;font-size:12px;font-weight:750;text-align:center}
+    .board-main{display:grid;grid-template-columns:24px 1fr;gap:0}
+    .row-labels{display:grid;align-items:center;color:#57717c;font-size:12px;font-weight:750;text-align:center}
+    #board{display:grid;aspect-ratio:1;width:100%;overflow:hidden;border:3px solid #2f6369;border-radius:8px;box-shadow:0 12px 24px rgba(22,72,77,.13)}
+    .cell{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;border:0;border-radius:0;padding:0;user-select:none}
+    .light{background:#eef2e7}.dark{background:#9cbcaf}
+    .cell.attacked.light{background:#f4ded9}.cell.attacked.dark{background:#d6aaa4}
+    .cell.current-column:after{content:"";position:absolute;inset:1px;border-left:2px solid rgba(29,95,115,.42);border-right:2px solid rgba(29,95,115,.42);pointer-events:none}
+    .cell .queen{position:relative;z-index:2;font-family:"Segoe UI Symbol","Noto Sans Symbols 2",serif;font-size:clamp(25px,3.65vw,46px);color:#173445;filter:drop-shadow(0px 2px 1px rgba(255,255,255,.5));line-height:1}
+    #board[data-size="4"] .queen{font-size:clamp(37px,6vw,67px)}
+    .cell .ghost{font-size:clamp(23px,3.5vw,43px);opacity:.55;color:#93570e;position:relative;z-index:3}
+    .cell.candidate.valid{background:#65dbbd!important;box-shadow:inset 0 0 0 4px #158974;z-index:2}
+    .cell.candidate.invalid{background:#f4a5a6!important;box-shadow:inset 0 0 0 4px #d9565d;z-index:2}
+    .cell.candidate.undo{background:#f4d58d!important;box-shadow:inset 0 0 0 4px #c88b2c;z-index:2}
+    .cell.candidate .candidate-text{color:#123a41;font-weight:900;font-size:clamp(12px,2vw,22px);position:relative;z-index:3}
+    .cell .attack-dot{position:absolute;bottom:5px;right:5px;width:5px;height:5px;border-radius:50%;background:#b05755;opacity:.7}
+    .cell.conflict-queen{box-shadow:inset 0 0 0 4px #db444f;z-index:3}
+    .cell.conflict-queen .queen{color:#9c1729}
+    .cell.inspect-click{outline:4px solid #3b82f6;outline-offset:-4px;z-index:4}
+    .legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:16px;justify-content:center;color:#657b85;font-size:12px}
+    .legend-item{display:inline-flex;align-items:center;gap:7px}
+    .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid rgba(0,0,0,.07)}
+    .swatch.ok{background:#65dbbd}.swatch.no{background:#f4a5a6}.swatch.undo{background:#f4d58d}.swatch.occupied{background:#173445}
+    .checkbox-line{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:10px;font-size:12px;color:#587380;cursor:pointer;user-select:none}
+    .checkbox-line input{accent-color:#168d7f;width:15px;height:15px}
+    .controls{margin-top:20px;border-top:1px solid var(--line);padding-top:18px}
+    .control-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .btn{border-radius:11px;padding:10px 13px;min-height:42px;font-size:13px;font-weight:750;border:1px solid #d6e3e6;background:#fff;color:#2b5361;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:transform .12s,box-shadow .12s}
+    .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 11px rgba(20,69,74,.10)}
+    .btn:disabled{opacity:.35;cursor:not-allowed}
+    .btn.primary{background:#137f77;color:white;border-color:#137f77}
+    .btn.primary:hover{background:#0c6e67}
+    .btn.amber{background:#fffbf3;border-color:#eddaa9;color:#96651f}
+    .btn.purple{background:#f4f5ff;border-color:#d6d9fd;color:#6264ac}
+    .btn.secondary{background:#f8fafb}
+    .btn-icon{font-size:17px;line-height:1}
+    .seek-line{display:flex;justify-content:space-between;gap:8px;margin:17px 0 6px;font-size:12px;color:#657d86}
+    .seek-line strong{color:#285e68}
+    input[type=range]{accent-color:#168b81;width:100%;cursor:pointer}
+    .speed{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12px;color:#59737e}
+    .speed select{padding:6px 9px;border:1px solid #dbe7e8;border-radius:9px;color:#1d525d;background:white}
+    .speed .hint{margin-left:auto;font-size:11px;color:#8a9da4}
+    .right-stack{display:flex;flex-direction:column;gap:18px}
+    .detail-card{padding:21px 22px}
+    .step-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:8px;background:#e7f7f1;color:#116f67;font-size:12px;font-weight:800}
+    .step-badge.bad{background:#fff0f1;color:#b74754}
+    .step-badge.undo{background:#fff5dd;color:#966018}
+    .step-badge.solution{background:#edf0ff;color:#4f52ae}
+    .detail-card h2{margin:11px 0 8px;font-size:19px;line-height:1.5}
+    .explain{margin:0;color:#48616e;font-size:14px;min-height:60px}
+    .formula{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:16px}
+    .formula>div{background:#f3f8f9;border-radius:10px;padding:9px 6px;text-align:center;border:1px solid #e5eff0}
+    .formula small{display:block;font-size:11px;color:#8a9ba0;margin-bottom:2px}.formula b{font-size:14px;color:#315766}
+    .detail-divider{height:1px;background:var(--line);margin:16px 0}
+    .data-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+    .data-head h3{margin:0;font-size:14px}
+    .data-head .muted{font-size:11px;color:#81939a}
+    #stack-list{display:flex;flex-direction:column;gap:7px;margin-top:10px;max-height:214px;overflow-y:auto;scrollbar-width:thin}
+    .stack-item{display:flex;gap:12px;align-items:center;border:1px solid #e5ebed;border-radius:9px;padding:7px 11px;background:#fcfdfd}
+    .stack-item.active{background:#e9faf4;border-color:#bfe7dc}
+    .stack-item .depth{font-weight:900;color:#1d8179;font-size:12px;width:18px}
+    .stack-item .txt{font-size:12px;color:#3f6071;font-weight:650}
+    .stack-item .sub{color:#82969b;margin-left:auto;font-size:11px}
+    .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+    .stat{background:#f5f8f9;border:1px solid #e6eeef;border-radius:11px;padding:11px 10px}
+    .stat small{display:block;color:#7a9098;font-size:11px}.stat strong{font-size:22px;line-height:1.2;display:block;color:#285868;font-variant-numeric:tabular-nums;margin-top:5px}
+    .code-card{padding:20px 22px}
+    .code-card h2{font-size:17px;margin:0 0 10px}
+    .code-intro{color:#80939a;font-size:12px;margin:-3px 0 11px}
+    .code{background:#112937;color:#e8f4f4;border-radius:12px;padding:12px 3px;overflow:auto;font-family:Consolas,"SFMono-Regular",monospace;font-size:12px;line-height:1.8}
+    .code-line{white-space:pre;display:block;padding:0 14px;border-left:3px solid transparent;color:#dbe7ea;transition:background .12s}
+    .code-line.active{background:#22515b;border-left-color:#6be4bf;color:#fff}
+    .code-line .num{display:inline-block;width:20px;color:#6a8994;user-select:none}
+    .learning{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:21px}
+    .lesson{background:white;border:1px solid var(--line);border-radius:18px;padding:18px 19px}
+    .lesson .number{font-size:12px;font-weight:900;letter-spacing:.06em;color:#0f9b88}
+    .lesson h3{font-size:15px;margin:8px 0 5px}
+    .lesson p{margin:0;font-size:13px;color:#597482}
+    .bottom-card{margin-top:20px;background:#e4f4ef;border:1px solid #c9e7dd;border-radius:18px;padding:20px 23px}
+    .bottom-card h2{font-size:16px;margin:0 0 7px;color:#17675c}
+    .bottom-card p{font-size:14px;color:#365e5c;margin:0}
+    .bottom-card code{color:#a75b21;background:#fff;border:1px solid #e4ebd9;border-radius:5px;padding:1px 4px}
+    #solution-numbers{font-family:Consolas,monospace;font-size:12px;color:#536a78;word-break:break-all;margin-top:5px}
+    footer{text-align:center;font-size:12px;color:#99adb0;padding-top:25px}
+    @media(max-width:970px){.layout{grid-template-columns:1fr}.right-stack{display:grid;grid-template-columns:1fr 1fr;gap:15px}.board-holder{max-width:490px}}
+    @media(max-width:640px){.hero{padding:26px 20px}.page{padding:18px 12px 40px}.board-card{padding:15px 12px}.right-stack{grid-template-columns:1fr}.detail-card,.code-card{padding:18px 15px}.learning{grid-template-columns:1fr}.intro{align-items:stretch}.switcher{width:100%}.switcher button{flex:1}.tipline{font-size:12px}.btn{padding:8px 10px;font-size:12px;min-height:40px}.control-row{gap:7px}.cell .queen{font-size:clamp(24px,7vw,39px)}.cell .ghost{font-size:clamp(22px,6vw,35px)}.cell .candidate-text{font-size:13px}.row-labels,.col-labels{font-size:10px}.hero-bottom{gap:6px}.hero-tag{font-size:11px}.formula b{font-size:12px}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-top"><span class="hero-logo">♛</span> ALGORITHM VISUAL LAB · C++ / DFS</div>
+    <h1>八皇后，<span style="color:#7be2ca">看懂每一次回溯。</span></h1>
+    <p>亲眼看着程序尝试放皇后、发现冲突、深入递归、撤销占用标记。你可以单步执行、自动播放，也可以直接跳到一次回溯或成功的解。</p>
+    <div class="hero-bottom">
+      <span class="hero-tag">每一列只放 1 个皇后</span>
+      <span class="hero-tag">同一行 / 两条斜线不能冲突</span>
+      <span class="hero-tag">递归返回后，恢复自己改动的状态</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="intro">
+      <div class="switcher" role="group" aria-label="棋盘模式">
+        <button id="mode4" type="button">4 皇后 · 先理解</button>
+        <button id="mode8" type="button" class="active">8 皇后 · 完整问题</button>
+      </div>
+      <div class="tipline">建议先点 <b>「跳到回溯」</b>，看清撤销发生在 <code>dfs(col + 1)</code> 返回之后。</div>
+    </div>
+
+    <div class="layout">
+      <section class="card board-card">
+        <div class="panel-title">
+          <div><h2>棋盘搜索过程</h2><div class="caption-label" id="board-subtitle">当前从第 1 列开始搜索</div></div>
+          <div class="count-chip" id="solution-chip">已找到 0 / 92 解</div>
+        </div>
+        <div class="board-holder">
+          <div class="col-labels" id="column-labels"></div>
+          <div class="board-main">
+            <div class="row-labels" id="row-labels"></div>
+            <div id="board" role="img" aria-label="皇后搜索棋盘" data-size="8"></div>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><i class="swatch ok"></i>可以放</span>
+            <span class="legend-item"><i class="swatch no"></i>冲突</span>
+            <span class="legend-item"><i class="swatch undo"></i>刚撤销</span>
+            <span class="legend-item"><i class="swatch occupied"></i>已放皇后</span>
+          </div>
+          <label class="checkbox-line"><input type="checkbox" id="toggle-attack" checked> 显示已放皇后能攻击到的格子（淡红色）</label>
+        </div>
+
+        <div class="controls">
+          <div class="control-row">
+            <button type="button" class="btn secondary" id="btn-reset" title="回到最初">↺ 重置</button>
+            <button type="button" class="btn" id="btn-prev" title="上一步">← 上一步</button>
+            <button type="button" class="btn primary" id="btn-play" aria-pressed="false"><span class="btn-icon" id="play-icon">▶</span><span id="play-text">自动播放</span></button>
+            <button type="button" class="btn" id="btn-next" title="下一步">下一步 →</button>
+          </div>
+          <div class="control-row" style="margin-top:9px">
+            <button type="button" class="btn amber" id="btn-undo">↶ 跳到下一次回溯</button>
+            <button type="button" class="btn purple" id="btn-solution">♛ 跳到下一种完整解</button>
+          </div>
+          <div class="seek-line"><span id="timeline-title">搜索步骤</span><strong id="step-counter">1 / 1</strong></div>
+          <input type="range" id="seek" min="0" max="1" value="0" aria-label="搜索进度">
+          <div class="speed">
+            <span>播放速度</span>
+            <select id="speed" aria-label="播放速度">
+              <option value="1100">慢速 · 1.1 秒/步</option>
+              <option value="520" selected>正常 · 0.52 秒/步</option>
+              <option value="180">快速 · 0.18 秒/步</option>
+              <option value="60">极速 · 0.06 秒/步</option>
+            </select>
+            <span class="hint">可随时暂停、拖动进度条</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="right-stack">
+        <section class="card detail-card" aria-live="polite" aria-atomic="true">
+          <div class="step-badge" id="state-badge">开始搜索</div>
+          <h2 id="state-title">准备放置第 1 个皇后</h2>
+          <p class="explain" id="state-explain">从第 1 列开始。每一列从第 1 行向下尝试；合法就放下皇后，再递归处理下一列。</p>
+          <div class="formula" id="formula-panel">
+            <div><small>当前位置</small><b id="formula-pos">尚未尝试</b></div>
+            <div><small>\ 斜线：行－列</small><b id="formula-diff">—</b></div>
+            <div><small>/ 斜线：行＋列</small><b id="formula-sum">—</b></div>
+          </div>
+          <div class="detail-divider"></div>
+          <div class="data-head"><h3>递归调用栈 · 当前已放皇后</h3><span class="muted" id="stack-indicator">深度 0</span></div>
+          <div id="stack-list"></div>
+          <div class="stat-row">
+            <div class="stat"><small>已经尝试格子</small><strong id="stat-attempts">0</strong></div>
+            <div class="stat"><small>棋盘上皇后</small><strong id="stat-queens">0</strong></div>
+            <div class="stat"><small>找到的方案</small><strong id="stat-solutions">0</strong></div>
+          </div>
+          <div id="solution-numbers">当前方案（按列记录行号）：尚未放置</div>
+        </section>
+
+        <section class="card code-card">
+          <h2>代码执行到哪里了？</h2>
+          <p class="code-intro">下面是和动画一一对应的 C++ 核心逻辑，绿色高亮代表当前步骤。</p>
+          <div class="code" id="code-view">
+            <div class="code-line" data-line="1"><span class="num">1</span> void dfs(int col) {</div>
+            <div class="code-line" data-line="2"><span class="num">2</span>   if (col == n + 1) {</div>
+            <div class="code-line" data-line="3"><span class="num">3</span>     recordAnswer(); return;</div>
+            <div class="code-line" data-line="4"><span class="num">4</span>   }</div>
+            <div class="code-line" data-line="5"><span class="num">5</span>   for (int row = 1; row &lt;= n; row++) {</div>
+            <div class="code-line" data-line="6"><span class="num">6</span>     if (conflict(row, col)) continue;</div>
+            <div class="code-line" data-line="7"><span class="num">7</span>     placeQueen(row, col); // 标记</div>
+            <div class="code-line" data-line="8"><span class="num">8</span>     dfs(col + 1);         // 深入</div>
+            <div class="code-line" data-line="9"><span class="num">9</span>     removeQueen(row, col);// 回溯</div>
+            <div class="code-line" data-line="10"><span class="num">10</span>  }</div>
+            <div class="code-line" data-line="11"><span class="num">11</span>}</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="learning">
+      <div class="lesson"><div class="number">01 · 决策</div><h3>每层递归只管一列</h3><p><code>dfs(col)</code> 的意思是：前面的列已处理，现在要给第 <code>col</code> 列找一个合法行。这样天然不会出现同列冲突。</p></div>
+      <div class="lesson"><div class="number">02 · 约束</div><h3>同行、同斜线都不行</h3><p>同行皇后不能共存；同一条 <code>\</code> 斜线的 <code>行－列</code> 相等；同一条 <code>/</code> 斜线的 <code>行＋列</code> 相等。</p></div>
+      <div class="lesson"><div class="number">03 · 恢复</div><h3>谁修改状态，谁恢复</h3><p>当前层放下皇后并标记占用；子递归全部探索完后，当前层撤销自己的标记，才能换个位置继续试。</p></div>
+    </section>
+
+    <section class="bottom-card">
+      <h2>你刚才最关心的问题：为什么回溯不需要加「失败了才撤销」的条件？</h2>
+      <p>因为本题要求找出 <b>所有</b> 方案，而不是找到一种就停。只要当前位置合法且已经执行过 <code>放置 → dfs(col + 1)</code>，当子递归返回时，就一定要执行 <code>撤销</code>。<b>返回表示这个分支已经探索完毕，并不等于这个分支失败了。</b> 点击上方「跳到下一次回溯」，观察皇后和占用标记如何恢复。</p>
+    </section>
+    <footer>离线即可运行 · 无外部依赖 · 8 皇后应得到 92 种方案，4 皇后应得到 2 种</footer>
+  </main>
+
+  <script>
+    'use strict';
+    const $ = id => document.getElementById(id);
+    let size = 8, dataset, index = 0, timer = null;
+
+    function createSearch(n) {
+      const q = Array(n).fill(-1);
+      const events = [], solutions = [], undos = [];
+      let attempts = 0, found = 0;
+      function add(kind, col=-1, row=-1, conflicts=[]) {
+        const event = {kind,col,row,queens:q.slice(),attempts,found,conflicts};
+        events.push(event);
+        if(kind==='solution') solutions.push(events.length - 1);
+        if(kind==='undo') undos.push(events.length - 1);
+      }
+      add('start');
+      function dfs(col) {
+        if(col === n) {
+          found++;
+          add('solution', n - 1, q[n - 1]);
+          return;
+        }
+        for(let row=0;row<n;row++) {
+          attempts++;
+          const conflicts=[];
+          for(let c=0;c<col;c++) {
+            const r=q[c];
+            if(r===row) conflicts.push({col:c,row:r,type:'同行'});
+            else if(r-c===row-col) conflicts.push({col:c,row:r,type:'\\ 斜线'});
+            else if(r+c===row+col) conflicts.push({col:c,row:r,type:'/ 斜线'});
+          }
+          add('try',col,row,conflicts);
+          if(conflicts.length) continue;
+          q[col]=row;
+          add('place',col,row);
+          dfs(col+1);
+          q[col]=-1;
+          add('undo',col,row);
+        }
+      }
+      dfs(0);
+      add('finish');
+      return {events,solutions,undos,total:found};
+    }
+
+    function stop(){if(timer!==null){clearInterval(timer);timer=null;} $('play-icon').textContent='▶';$('play-text').textContent='自动播放';$('btn-play').setAttribute('aria-pressed','false');}
+    function resetMode(n) {
+      stop(); size=n;dataset=createSearch(n);index=0;
+      $('mode4').classList.toggle('active',n===4);
+      $('mode8').classList.toggle('active',n===8);
+      $('seek').max=String(dataset.events.length-1);
+      $('board').dataset.size=String(n);
+      $('board').style.gridTemplateColumns=`repeat(${n},1fr)`;
+      $('column-labels').style.gridTemplateColumns=`repeat(${n},1fr)`;
+      $('row-labels').style.gridTemplateRows=`repeat(${n},1fr)`;
+      $('column-labels').innerHTML=Array.from({length:n},(_,i)=>`<span>${i+1} 列</span>`).join('');
+      $('row-labels').innerHTML=Array.from({length:n},(_,i)=>`<span>${i+1}</span>`).join('');
+      render();
+    }
+    function seek(to){index=Math.max(0,Math.min(dataset.events.length-1,to));render();}
+    function nextMatching(list){for(const at of list)if(at>index)return at;return -1;}
+    function isAttacked(q,r,c){for(let cc=0;cc<q.length;cc++){const rr=q[cc];if(rr<0)continue;if(rr===r||cc===c||Math.abs(rr-r)===Math.abs(cc-c))return true;}return false;}
+    function detailFor(e){
+      const col=e.col+1,row=e.row+1, next=e.col+2;
+      if(e.kind==='start')return ['start','准备开始','从第 1 列开始。每一列尝试不同的行；合法就放下皇后，再探索下一列。'];
+      if(e.kind==='try') {
+        if(e.conflicts.length){const c=e.conflicts[0];return ['bad',`第 ${col} 列、第 ${row} 行：发生冲突`,`与第 ${c.col+1} 列、第 ${c.row+1} 行的皇后${c.type}冲突。这一格不能放，直接 continue，尝试下一行。不需要放置，也不需要撤销。`];}
+        return ['good',`尝试第 ${col} 列、第 ${row} 行`,`这一行以及两条对角线都没有冲突。可以先放下皇后，再调用 dfs(${next}) 探索后面的列。`];
+      }
+      if(e.kind==='place')return ['good',`放置第 ${col} 列的皇后`,`已把皇后放在第 ${row} 行，同时标记这一行和两条斜线为“已占用”。下一步递归进入第 ${next} 列。`];
+      if(e.kind==='undo')return ['undo',`回溯：撤销第 ${col} 列、第 ${row} 行`,`下一层 dfs(${next}) 已把它负责的所有分支探索完毕并返回。当前层撤销自己放置的皇后，恢复行与斜线的占用标记，然后继续尝试下一行。即使找到过解，也要撤销！`];
+      if(e.kind==='solution')return ['solution',`找到第 ${e.found} 种合法方案！`,`所有 ${size} 列都成功放下皇后。先记录这组行号，再 return。之后仍会回溯，因为我们要枚举所有方案，而不是找到一个就停止。`];
+      return ['finish','全部搜索完成！',`一共找到了 ${dataset.total} 种合法方案。每个分支都探索过，而且所有临时放置的皇后都已撤销，棋盘恢复为空。`];
+    }
+    function render(){
+      const e=dataset.events[index];
+      const placed=e.queens.filter(r=>r>=0).length;
+      const attack=$('toggle-attack').checked;
+      const candidate=e.kind==='try'||e.kind==='undo';
+      const invalid=e.kind==='try'&&e.conflicts.length>0;
+      const conflictCols=new Set(invalid?e.conflicts.map(x=>x.col):[]);
+      let cells='';
+      for(let r=0;r<size;r++)for(let c=0;c<size;c++){
+        const occupied=e.queens[c]===r;
+        const focus=c===e.col&&r===e.row&&candidate;
+        const danger=attack&&!occupied&&isAttacked(e.queens,r,c);
+        const cl=['cell',(r+c)%2===0?'light':'dark',danger?'attacked':'',e.kind!=='finish'&&c===e.col?'current-column':'',focus?'candidate':'',focus?(e.kind==='undo'?'undo':invalid?'invalid':'valid'):'',occupied&&conflictCols.has(c)?'conflict-queen':''].filter(Boolean).join(' ');
+        const contents=occupied?'<span class="queen" aria-hidden="true">♛</span>':focus?(e.kind==='undo'?'<span class="ghost" aria-hidden="true">↶</span>':`<span class="candidate-text" aria-hidden="true">${invalid?'×':'✓'}</span>`):(danger?'<span class="attack-dot" aria-hidden="true"></span>':'');
+        cells+=`<div class="${cl}" title="第 ${r+1} 行，第 ${c+1} 列">${contents}</div>`;
+      }
+      $('board').innerHTML=cells;
+      $('board').setAttribute('aria-label',`${size}乘${size}棋盘，当前有${placed}个皇后，当前状态${e.kind}`);
+      $('solution-chip').textContent=`已找到 ${e.found} / ${dataset.total} 解`;
+      $('board-subtitle').textContent=e.kind==='start'?'准备从第 1 列开始搜索':e.kind==='finish'?'所有列的搜索均已完成':e.kind==='solution'?`完整方案 #${e.found}`:`当前处理：第 ${e.col+1} 列`;
+      const [status,title,explain]=detailFor(e);
+      const labels={start:'搜索开始',good:e.kind==='place'?'放置成功':'检查合法',bad:'冲突 · 跳过',undo:'回溯 · 恢复标记',solution:'找到完整解',finish:'搜索结束'};
+      const badge=$('state-badge');badge.className='step-badge';if(status==='bad')badge.classList.add('bad');if(status==='undo')badge.classList.add('undo');if(status==='solution'||status==='finish')badge.classList.add('solution');
+      badge.textContent=labels[status];$('state-title').textContent=title;$('state-explain').textContent=explain;
+      const hasPos=e.row>=0&&e.col>=0;
+      $('formula-pos').textContent=hasPos?`${e.row+1} 行 ${e.col+1} 列`:'—';
+      $('formula-diff').textContent=hasPos?String(e.row-e.col):'—';
+      $('formula-sum').textContent=hasPos?String(e.row+e.col+2):'—';
+      const stack=[];
+      for(let c=0;c<size;c++)if(e.queens[c]>=0)stack.push(`<div class="stack-item"><span class="depth">${c+1}</span><span class="txt">dfs(${c+1}) → 放在第 ${e.queens[c]+1} 行</span><span class="sub">已标记</span></div>`);
+      if(e.kind==='try'&&e.col>=0)stack.push(`<div class="stack-item active"><span class="depth">${e.col+1}</span><span class="txt">dfs(${e.col+1}) → 尝试第 ${e.row+1} 行</span><span class="sub">正在判断</span></div>`);
+      if(e.kind==='undo'&&e.col>=0)stack.push(`<div class="stack-item active"><span class="depth">${e.col+1}</span><span class="txt">dfs(${e.col+1}) → 刚撤销第 ${e.row+1} 行</span><span class="sub">恢复完成</span></div>`);
+      $('stack-list').innerHTML=stack.length?stack.join(''):'<div class="stack-item"><span class="txt">目前没有皇后被标记占用</span></div>';
+      $('stack-indicator').textContent=`已放 ${placed} 层`;
+      $('stat-attempts').textContent=e.attempts.toLocaleString('zh-CN');
+      $('stat-queens').textContent=String(placed);
+      $('stat-solutions').textContent=String(e.found);
+      $('solution-numbers').textContent=`当前方案（按列记录行号）：${placed?'['+e.queens.map(v=>v<0?'·':v+1).join(', ')+']':'尚未放置'}`;
+      let line=1;
+      if(e.kind==='try')line=e.conflicts.length?6:5;
+      if(e.kind==='place')line=7;
+      if(e.kind==='undo')line=9;
+      if(e.kind==='solution')line=3;
+      if(e.kind==='finish')line=11;
+      document.querySelectorAll('.code-line').forEach(x=>x.classList.toggle('active',Number(x.dataset.line)===line));
+      $('seek').value=String(index);
+      $('step-counter').textContent=`${(index+1).toLocaleString('zh-CN')} / ${dataset.events.length.toLocaleString('zh-CN')}`;
+      $('btn-prev').disabled=index===0;
+      $('btn-next').disabled=index>=dataset.events.length-1;
+      $('btn-undo').disabled=nextMatching(dataset.undos)<0;
+      $('btn-solution').disabled=nextMatching(dataset.solutions)<0;
+      $('timeline-title').textContent=`搜索步骤 · ${size} 皇后`;
+      if(index===dataset.events.length-1) stop();
+    }
+    function play(){
+      if(timer!==null){stop();return;}
+      if(index>=dataset.events.length-1)index=0;
+      $('play-icon').textContent='Ⅱ';$('play-text').textContent='暂停播放';$('btn-play').setAttribute('aria-pressed','true');
+      timer=setInterval(()=>{if(index<dataset.events.length-1)seek(index+1);else stop();},Number($('speed').value));
+      render();
+    }
+    $('btn-reset').addEventListener('click',()=>{stop();seek(0);});
+    $('btn-prev').addEventListener('click',()=>{stop();seek(index-1);});
+    $('btn-next').addEventListener('click',()=>{stop();seek(index+1);});
+    $('btn-play').addEventListener('click',play);
+    $('btn-undo').addEventListener('click',()=>{stop();const at=nextMatching(dataset.undos);if(at>=0)seek(at);});
+    $('btn-solution').addEventListener('click',()=>{stop();const at=nextMatching(dataset.solutions);if(at>=0)seek(at);});
+    $('toggle-attack').addEventListener('change',render);
+    $('seek').addEventListener('input',e=>{stop();seek(Number(e.target.value));});
+    $('speed').addEventListener('change',()=>{if(timer!==null){stop();play();}});
+    $('mode4').addEventListener('click',()=>resetMode(4));
+    $('mode8').addEventListener('click',()=>resetMode(8));
+    document.addEventListener('keydown',e=>{
+      if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement?.tagName))return;
+      if(e.key==='ArrowRight'){e.preventDefault();stop();seek(index+1);}
+      if(e.key==='ArrowLeft'){e.preventDefault();stop();seek(index-1);}
+      if(e.code==='Space'){e.preventDefault();play();}
+    });
+    resetMode(8);
+    if(dataset.total!==92){console.error('8 queen count verification failed',dataset.total);}
+  </script>
+</body>
+</html>

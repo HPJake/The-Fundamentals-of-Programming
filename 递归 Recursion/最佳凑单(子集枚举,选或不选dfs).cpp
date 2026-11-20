@@ -1,4 +1,4 @@
-//讲讲子集枚举问题, 选或不选型DFS
+//子集枚举问题, 选或不选型DFS
 #include <iostream>
 #include <vector>
 #include <climits> //提供INT_MAX
